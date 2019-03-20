@@ -20,9 +20,12 @@ import static io.quarkus.test.common.PathTestHelper.getAppClassLocation;
 import static io.quarkus.test.common.PathTestHelper.getTestClassesLocation;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -50,6 +53,7 @@ import io.quarkus.runner.RuntimeRunner;
 import io.quarkus.runner.TransformerTarget;
 import io.quarkus.runtime.LaunchMode;
 import io.quarkus.test.common.NativeImageLauncher;
+import io.quarkus.test.common.PropertyTestUtil;
 import io.quarkus.test.common.RestAssuredURLManager;
 import io.quarkus.test.common.TestInjectionManager;
 import io.quarkus.test.common.TestResourceManager;
@@ -62,7 +66,7 @@ public class QuarkusTestExtension implements BeforeAllCallback, BeforeEachCallba
         ExtensionContext root = context.getRoot();
         ExtensionContext.Store store = root.getStore(ExtensionContext.Namespace.GLOBAL);
         ExtensionState state = (ExtensionState) store.get(ExtensionState.class.getName());
-        System.setProperty("quarkus.log.file.path", "target/quarkus.log");
+        PropertyTestUtil.setLogFileProperty();
         boolean substrateTest = context.getRequiredTestClass().isAnnotationPresent(SubstrateTest.class);
         if (state == null) {
             TestResourceManager testResourceManager = new TestResourceManager(context.getRequiredTestClass());
@@ -94,6 +98,7 @@ public class QuarkusTestExtension implements BeforeAllCallback, BeforeEachCallba
                 .setLaunchMode(LaunchMode.TEST)
                 .setClassLoader(getClass().getClassLoader())
                 .setTarget(appClassLocation)
+                .addAdditionalArchive(testClassLocation)
                 .setClassOutput(new ClassOutput() {
                     @Override
                     public void writeClass(boolean applicationClass, String className, byte[] data) throws IOException {
@@ -226,11 +231,13 @@ public class QuarkusTestExtension implements BeforeAllCallback, BeforeEachCallba
     public Object createTestInstance(TestInstanceFactoryContext factoryContext, ExtensionContext extensionContext)
             throws TestInstantiationException {
         try {
-            Object instance = factoryContext.getTestClass().newInstance();
+            Constructor<?> ctor = factoryContext.getTestClass().getDeclaredConstructor();
+            ctor.setAccessible(true);
+            Object instance = ctor.newInstance();
             TestHTTPResourceManager.inject(instance);
             TestInjectionManager.inject(instance);
             return instance;
-        } catch (InstantiationException | IllegalAccessException e) {
+        } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new TestInstantiationException("Failed to create test instance", e);
         }
     }
@@ -268,9 +275,7 @@ public class QuarkusTestExtension implements BeforeAllCallback, BeforeEachCallba
         @Override
         public void run() {
             try {
-                if (Files.exists(path)) {
-                    Files.delete(path);
-                }
+                Files.deleteIfExists(path);
             } catch (IOException e) {
                 e.printStackTrace();
             }

@@ -39,11 +39,20 @@
         <!-- These properties are needed in order for them to be resolvable by the documentation -->
         <!-- The Graal version we suggest using in documentation - as that's
            what we work with by self downloading it: -->
-        <graal-sdk.version-for-documentation>1.0.0-rc12</graal-sdk.version-for-documentation>
+        <graal-sdk.version-for-documentation>1.0.0-rc13</graal-sdk.version-for-documentation>
         <rest-assured.version>3.3.0</rest-assured.version>
 
         <!-- Enable APT by default for Eclipse -->
         <m2e.apt.activation>jdt_apt</m2e.apt.activation>
+
+        <!--
+        Supported Maven versions, interpreted as a version range
+         -->
+        <supported-maven-versions>[3.5.3,)</supported-maven-versions>
+
+        <!-- These 2 properties are used by CreateProjectMojo to add the Maven Wrapper -->
+        <proposed-maven-vesion>3.6.0</proposed-maven-vesion>
+        <maven-wrapper.version>0.7.4</maven-wrapper.version>
     </properties>
 
     <dependencyManagement>
@@ -133,6 +142,26 @@
             </dependency>
             <dependency>
                 <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-jsonb</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-jsonb-runtime</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-jsonp</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-jsonp-runtime</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-netty</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -172,6 +201,16 @@
             <dependency>
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-camel-core-runtime</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-camel-aws-s3</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-camel-aws-s3-runtime</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -232,6 +271,16 @@
             <dependency>
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-jdbc-mariadb-runtime</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-jdbc-mssql</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-jdbc-mssql-runtime</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -441,6 +490,16 @@
             </dependency>
             <dependency>
                 <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-vertx-web</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-vertx-web-runtime</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-undertow-websockets</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -621,7 +680,7 @@
                                 <rules>
                                     <dependencyConvergence/>
                                     <requireMavenVersion>
-                                        <version>3.5.3</version>
+                                        <version>${supported-maven-versions}</version>
                                     </requireMavenVersion>
                                     <bannedDependencies>
                                         <excludes>
@@ -641,6 +700,10 @@
                                             <exclude>org.jboss.spec.javax.servlet:jboss-servlet-api_3.1_spec</exclude>
                                             <!-- The API is packaged by the implementation-->
                                             <exclude>javax.json:javax.json-api</exclude>
+                                            <!-- Do not use Jakarta APIs for JSON -->
+                                            <exclude>org.glassfish:jakarta.json</exclude>
+                                            <exclude>jakarta.json.bind:jakarta.json.bind-api</exclude>
+                                            <exclude>jakarta.json:jakarta.json-api</exclude>
                                         </excludes>
                                     </bannedDependencies>
                                 </rules>
@@ -774,14 +837,15 @@
             <build>
                 <plugins>
                     <plugin>
-                         <groupId>org.sonatype.plugins</groupId>
+                        <groupId>org.sonatype.plugins</groupId>
                         <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>1.6.3</version>
+                        <version>${nexus-staging-maven-plugin.version}</version>
                         <extensions>true</extensions>
                         <configuration>
                             <nexusUrl>https://oss.sonatype.org/</nexusUrl>
                             <serverId>ossrh</serverId>
                             <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                            <keepStagingRepositoryOnCloseRuleFailure>true</keepStagingRepositoryOnCloseRuleFailure>
                         </configuration>
                     </plugin>
                     <plugin>

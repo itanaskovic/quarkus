@@ -44,14 +44,17 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <build>
@@ -227,15 +230,6 @@
                     </plugin>
                 </plugins>
             </build>
-        </profile>
-        <profile>
-            <id>java8</id>
-            <activation>
-                <jdk>[8,)</jdk>
-            </activation>
-            <properties>
-                <skip.gradle.build>true</skip.gradle.build>
-            </properties>
         </profile>
     </profiles>
 </project>

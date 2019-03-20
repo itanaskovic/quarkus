@@ -130,10 +130,6 @@
             <artifactId>resteasy-jaxb-provider</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.glassfish</groupId>
-            <artifactId>javax.json</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-rxjava2</artifactId>
         </dependency>
@@ -282,6 +278,7 @@
                                     <goal>native-image</goal>
                                 </goals>
                                 <configuration>
+                                    <addAllCharsets>true</addAllCharsets>
                                     <cleanupServer>true</cleanupServer>
                                     <enableHttpUrlHandler>true</enableHttpUrlHandler>
                                     <!-- Requires Quarkus Graal fork to work, will fail otherwise

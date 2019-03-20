@@ -127,13 +127,13 @@
             </plugin>
         </plugins>
     </build>
-<!--
+
     <profiles>
         <profile>
             <id>native-image</id>
             <activation>
                 <property>
-                    <name>native</name>
+                    <name>native-camel</name>
                 </property>
             </activation>
             <build>
@@ -181,6 +181,5 @@
             </build>
         </profile>
     </profiles>
--->
 
 </project>
