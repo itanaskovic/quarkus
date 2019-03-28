@@ -255,7 +255,8 @@ public class BytecodeRecorderImpl implements RecorderContext {
                         return "Runtime proxy of " + returnType + " with id " + key;
                     }
                     throw new RuntimeException(
-                            "You cannot invoke directly on an object returned from the bytecode recorded, you can only pass is back into the recorder as a parameter");
+                            "You cannot invoke " + method.getName()
+                                    + "() directly on an object returned from the bytecode recorder, you can only pass it back into the recorder as a parameter");
                 }
             });
             ProxyInstance instance = new ProxyInstance(proxyInstance, key);
@@ -397,16 +398,23 @@ public class BytecodeRecorderImpl implements RecorderContext {
             out = method.invokeVirtualMethod(ofMethod(StartupContext.class, "getValue", Object.class, String.class),
                     method.getMethodParam(0), method.load(proxyId));
         } else if (param instanceof Class<?>) {
-            String name = classProxies.get(param);
-            if (name == null) {
-                name = ((Class) param).getName();
+            if (!((Class) param).isPrimitive()) {
+                // Only try to load the class by name if it is not a primitive class
+                String name = classProxies.get(param);
+                if (name == null) {
+                    name = ((Class) param).getName();
+                }
+                ResultHandle currentThread = method.invokeStaticMethod(ofMethod(Thread.class, "currentThread", Thread.class));
+                ResultHandle tccl = method.invokeVirtualMethod(
+                        ofMethod(Thread.class, "getContextClassLoader", ClassLoader.class),
+                        currentThread);
+                out = method.invokeStaticMethod(
+                        ofMethod(Class.class, "forName", Class.class, String.class, boolean.class, ClassLoader.class),
+                        method.load(name), method.load(true), tccl);
+            } else {
+                // Else load the primitive type by reference; double.class => Class var9 = Double.TYPE;
+                out = method.loadClass((Class) param);
             }
-            ResultHandle currentThread = method.invokeStaticMethod(ofMethod(Thread.class, "currentThread", Thread.class));
-            ResultHandle tccl = method.invokeVirtualMethod(ofMethod(Thread.class, "getContextClassLoader", ClassLoader.class),
-                    currentThread);
-            out = method.invokeStaticMethod(
-                    ofMethod(Class.class, "forName", Class.class, String.class, boolean.class, ClassLoader.class),
-                    method.load(name), method.load(true), tccl);
         } else if (expectedType == boolean.class) {
             out = method.load((boolean) param);
         } else if (expectedType == Boolean.class) {

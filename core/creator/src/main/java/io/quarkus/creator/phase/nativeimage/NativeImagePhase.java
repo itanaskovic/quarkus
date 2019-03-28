@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import org.eclipse.microprofile.config.Config;
 import org.jboss.logging.Logger;
 
+import io.quarkus.bootstrap.util.IoUtils;
 import io.quarkus.creator.AppCreationPhase;
 import io.quarkus.creator.AppCreator;
 import io.quarkus.creator.AppCreatorException;
@@ -46,7 +47,6 @@ import io.quarkus.creator.config.reader.PropertyContext;
 import io.quarkus.creator.outcome.OutcomeProviderRegistration;
 import io.quarkus.creator.phase.augment.AugmentOutcome;
 import io.quarkus.creator.phase.runnerjar.RunnerJarOutcome;
-import io.quarkus.creator.util.IoUtils;
 import io.smallrye.config.SmallRyeConfigProviderResolver;
 
 /**
@@ -278,7 +278,7 @@ public class NativeImagePhase implements AppCreationPhase<NativeImagePhase>, Nat
             //TODO: use an 'official' image
             String image;
             if (dockerBuild.toLowerCase().equals("true")) {
-                image = "swd847/centos-graal-native-image-rc13";
+                image = "quay.io/quarkus/centos-quarkus-native-image:graalvm-1.0.0-rc14";
             } else {
                 //allow the use of a custom image
                 image = dockerBuild;
@@ -466,8 +466,10 @@ public class NativeImagePhase implements AppCreationPhase<NativeImagePhase>, Nat
     private boolean isThisGraalVMRCObsolete() {
         final String vmName = System.getProperty("java.vm.name");
         log.info("Running Quarkus native-image plugin on " + vmName);
-        if (vmName.contains("-rc9") || vmName.contains("-rc10") || vmName.contains("-rc11") || vmName.contains("-rc12")) {
-            log.error("Out of date RC build of GraalVM detected! Please upgrade to RC13");
+        final List<String> obsoleteGraalVmVersions = Arrays.asList("-rc9", "-rc10", "-rc11", "-rc12", "-rc13");
+        final boolean vmVersionIsObsolete = obsoleteGraalVmVersions.stream().anyMatch(vmName::contains);
+        if (vmVersionIsObsolete) {
+            log.error("Out of date RC build of GraalVM detected! Please upgrade to RC14");
             return true;
         }
         return false;

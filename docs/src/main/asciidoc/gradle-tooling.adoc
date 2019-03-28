@@ -1,3 +1,9 @@
+////
+This guide is maintained in the main Quarkus repository
+and pull requests should be submitted there:
+https://github.com/quarkusio/quarkus/tree/master/docs/src/main/asciidoc
+////
+
 include::./attributes.adoc[]
 = Building {project-name} apps with Gradle
 
@@ -12,7 +18,7 @@ luckily setting up a {project-name} project with Gradle is very simple. You only
 ----
 plugins {
     id 'java'
-    id 'io.quarkus.gradle.plugin' version '{quarkus-version}'
+    id 'io.quarkus' version '{quarkus-version}'
 }
 ----
 
@@ -22,7 +28,7 @@ or, if you use the Gradle Kotlin DSL:
 ----
 plugins {
     java
-    id("io.quarkus.gradle.plugin") version "{quarkus-version}"
+    id("io.quarkus") version "{quarkus-version}"
 }
 ----
 
@@ -36,16 +42,11 @@ Here is a complete sample file for a simple REST project:
 ----
 plugins {
     id 'java'
-    id 'io.quarkus.gradle.plugin' version '{quarkus-version}' <1>
+    id 'io.quarkus.' version '{quarkus-version}' <1>
 }
 
 repositories {
     mavenCentral()
-
-    // this is temporary, all dependencies should be in central soon
-    maven {
-        url = 'http://repository.jboss.org/nexus/content/groups/public'
-    }
 }
 
 dependencies { <2>
@@ -63,14 +64,11 @@ Here's the same build script, using the Gradle Kotlin DSL:
 ----
 plugins {
     java
-    id("io.quarkus.gradle.plugin") version "{quarkus-version}"
+    id("io.quarkus") version "{quarkus-version}"
 }
 
 repositories {
     mavenCentral()
-
-    // this is temporary, all dependencies should be in central soon
-    maven(url = uri("http://repository.jboss.org/nexus/content/groups/public"))
 }
 
 dependencies {

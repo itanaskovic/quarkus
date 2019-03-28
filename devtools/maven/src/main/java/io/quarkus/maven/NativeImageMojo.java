@@ -31,7 +31,6 @@ import org.apache.maven.project.MavenProject;
 
 import io.quarkus.creator.AppCreator;
 import io.quarkus.creator.AppCreatorException;
-import io.quarkus.creator.AppDependency;
 import io.quarkus.creator.phase.augment.AugmentOutcome;
 import io.quarkus.creator.phase.nativeimage.NativeImageOutcome;
 import io.quarkus.creator.phase.nativeimage.NativeImagePhase;
@@ -189,9 +188,8 @@ public class NativeImageMojo extends AbstractMojo {
                         }
 
                         @Override
-                        public boolean isWhitelisted(AppDependency dep) {
-                            // not relevant for this mojo
-                            throw new UnsupportedOperationException();
+                        public Path getConfigDir() {
+                            return classesDir;
                         }
                     })
                     .pushOutcome(RunnerJarOutcome.class, new RunnerJarOutcome() {

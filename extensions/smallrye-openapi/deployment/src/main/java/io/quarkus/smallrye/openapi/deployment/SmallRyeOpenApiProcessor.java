@@ -53,6 +53,7 @@ import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.HotDeploymentConfigFileBuildItem;
 import io.quarkus.deployment.builditem.substrate.ReflectiveClassBuildItem;
 import io.quarkus.deployment.builditem.substrate.ReflectiveHierarchyBuildItem;
+import io.quarkus.deployment.logging.LogCleanupFilterBuildItem;
 import io.quarkus.resteasy.deployment.ResteasyJaxrsConfig;
 import io.quarkus.runtime.annotations.ConfigItem;
 import io.quarkus.runtime.annotations.ConfigRoot;
@@ -160,16 +161,14 @@ public class SmallRyeOpenApiProcessor {
             BuildProducer<ReflectiveHierarchyBuildItem> reflectiveHierarchy,
             Collection<AnnotationInstance> apiResponseAnnotationInstances) {
         for (AnnotationInstance apiResponseAnnotationInstance : apiResponseAnnotationInstances) {
-            AnnotationInstance[] contents = apiResponseAnnotationInstance.value(OPENAPI_RESPONSE_CONTENT).asNestedArray();
-            if (contents == null) {
+            AnnotationValue contentAnnotationValue = apiResponseAnnotationInstance.value(OPENAPI_RESPONSE_CONTENT);
+            if (contentAnnotationValue == null) {
                 continue;
             }
+
+            AnnotationInstance[] contents = contentAnnotationValue.asNestedArray();
             for (AnnotationInstance content : contents) {
                 AnnotationInstance schema = content.value(OPENAPI_RESPONSE_SCHEMA).asNested();
-                if (schema == null) {
-                    continue;
-                }
-
                 AnnotationValue schemaImplementationClass = schema.value(OPENAPI_SCHEMA_IMPLEMENTATION);
                 if (schemaImplementationClass != null) {
                     reflectiveHierarchy.produce(new ReflectiveHierarchyBuildItem(schemaImplementationClass.asClass()));
@@ -214,6 +213,12 @@ public class SmallRyeOpenApiProcessor {
         OpenAPI sm = generateStaticModel(archivesBuildItem);
         OpenAPI am = generateAnnotationModel(combinedIndexBuildItem.getIndex(), jaxrsConfig);
         return new BeanContainerListenerBuildItem(template.setupModel(sm, am));
+    }
+
+    @BuildStep
+    LogCleanupFilterBuildItem logCleanup() {
+        return new LogCleanupFilterBuildItem("io.smallrye.openapi.api.OpenApiDocument",
+                "OpenAPI document initialized:");
     }
 
     private OpenAPI generateStaticModel(ApplicationArchivesBuildItem archivesBuildItem) throws IOException {

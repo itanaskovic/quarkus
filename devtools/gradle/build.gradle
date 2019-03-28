@@ -1,23 +1,21 @@
 plugins {
-    id 'java'
+    id 'com.gradle.build-scan' version '2.2.1'
+    id 'com.gradle.plugin-publish' version '0.10.1'
+    id 'java-gradle-plugin'
 }
 
+compileJava.options.encoding = "UTF-8"
+compileTestJava.options.encoding = "UTF-8"
+
 repositories {
+    mavenLocal()
     mavenCentral()
+    jcenter()
 }
 
 dependencies {
-    compile localGroovy()
-    compile gradleApi()
     compile fileTree(dir: 'target/dependencies/compile', include: '*.jar')
-    testCompile gradleTestKit()
     testCompile fileTree(dir: 'target/dependencies/test', include: '*.jar')
-}
-
-jar {
-    manifest {
-        attributes 'Implementation-Version': (version ? version : 'unknown')
-    }
 }
 
 test {
@@ -31,7 +29,9 @@ task sourcesJar(type: Jar) {
     classifier = 'sources'
     from sourceSets.main.allSource
 }
-
+javadoc {
+    options.addStringOption('encoding', 'UTF-8')
+}
 task javadocJar(type: Jar) {
     classifier = "javadoc"
     from javadoc
@@ -42,3 +42,23 @@ artifacts {
     archives javadocJar
 }
 
+gradlePlugin {
+    plugins {
+        simplePlugin {
+            id = 'io.quarkus'
+            implementationClass = 'io.quarkus.gradle.QuarkusPlugin'
+            displayName = 'Quarkus Plugin'
+            description = 'Builds a Quarkus application, and provides helpers to launch dev-mode, the Quarkus CLI, building of native images'
+        }
+    }
+}
+
+buildScan {
+    //See also: https://docs.gradle.com/build-scan-plugin/
+    termsOfServiceUrl = 'https://gradle.com/terms-of-service';
+    termsOfServiceAgree = 'yes'
+}
+
+//To publish properly in the future:
+//name='quarkus-gradle-plugin'
+//groupId='io.quarkus'

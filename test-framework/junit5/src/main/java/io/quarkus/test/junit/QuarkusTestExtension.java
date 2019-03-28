@@ -20,13 +20,13 @@ import static io.quarkus.test.common.PathTestHelper.getAppClassLocation;
 import static io.quarkus.test.common.PathTestHelper.getTestClassesLocation;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Enumeration;
@@ -34,7 +34,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
+import org.jboss.builder.BuildChainBuilder;
+import org.jboss.builder.BuildContext;
+import org.jboss.builder.BuildStep;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -46,13 +51,18 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 
+import io.quarkus.bootstrap.BootstrapClassLoaderFactory;
+import io.quarkus.bootstrap.BootstrapException;
+import io.quarkus.bootstrap.util.PropertyUtils;
 import io.quarkus.deployment.ClassOutput;
 import io.quarkus.deployment.QuarkusClassWriter;
+import io.quarkus.deployment.builditem.TestClassPredicateBuildItem;
 import io.quarkus.deployment.util.IoUtil;
 import io.quarkus.runner.RuntimeRunner;
 import io.quarkus.runner.TransformerTarget;
 import io.quarkus.runtime.LaunchMode;
 import io.quarkus.test.common.NativeImageLauncher;
+import io.quarkus.test.common.PathTestHelper;
 import io.quarkus.test.common.PropertyTestUtil;
 import io.quarkus.test.common.RestAssuredURLManager;
 import io.quarkus.test.common.TestInjectionManager;
@@ -61,8 +71,12 @@ import io.quarkus.test.common.http.TestHTTPResourceManager;
 
 public class QuarkusTestExtension implements BeforeAllCallback, BeforeEachCallback, AfterEachCallback, TestInstanceFactory {
 
+    private URLClassLoader appCl;
+    private ClassLoader originalCl;
+
     @Override
     public void beforeAll(ExtensionContext context) throws Exception {
+
         ExtensionContext root = context.getRoot();
         ExtensionContext.Store store = root.getStore(ExtensionContext.Namespace.GLOBAL);
         ExtensionState state = (ExtensionState) store.get(ExtensionState.class.getName());
@@ -94,9 +108,26 @@ public class QuarkusTestExtension implements BeforeAllCallback, BeforeEachCallba
 
         Path appClassLocation = getAppClassLocation(context.getRequiredTestClass());
         Path testClassLocation = getTestClassesLocation(context.getRequiredTestClass());
+        ClassLoader testClassLoader = context.getRequiredTestClass().getClassLoader();
+
+        try {
+            appCl = BootstrapClassLoaderFactory.newInstance()
+                    .setAppClasses(appClassLocation)
+                    .addToClassPath(testClassLocation)
+                    .setParent(getClass().getClassLoader())
+                    .setOffline(PropertyUtils.getBoolean(BootstrapClassLoaderFactory.PROP_OFFLINE, true))
+                    .setLocalProjectsDiscovery(
+                            PropertyUtils.getBoolean(BootstrapClassLoaderFactory.PROP_PROJECT_DISCOVERY, true))
+                    .setClasspathCache(PropertyUtils.getBoolean(BootstrapClassLoaderFactory.PROP_CP_CACHE, true))
+                    .newDeploymentClassLoader();
+        } catch (BootstrapException e) {
+            throw new IllegalStateException("Failed to create the boostrap class loader", e);
+        }
+        originalCl = setCCL(appCl);
+
         RuntimeRunner runtimeRunner = RuntimeRunner.builder()
                 .setLaunchMode(LaunchMode.TEST)
-                .setClassLoader(getClass().getClassLoader())
+                .setClassLoader(appCl)
                 .setTarget(appClassLocation)
                 .addAdditionalArchive(testClassLocation)
                 .setClassOutput(new ClassOutput() {
@@ -122,7 +153,8 @@ public class QuarkusTestExtension implements BeforeAllCallback, BeforeEachCallba
                 })
                 .setTransformerTarget(new TransformerTarget() {
                     @Override
-                    public void setTransformers(Map<String, List<BiFunction<String, ClassVisitor, ClassVisitor>>> functions) {
+                    public void setTransformers(
+                            Map<String, List<BiFunction<String, ClassVisitor, ClassVisitor>>> functions) {
                         ClassLoader main = Thread.currentThread().getContextClassLoader();
 
                         //we need to use a temp class loader, or the old resource location will be cached
@@ -150,7 +182,8 @@ public class QuarkusTestExtension implements BeforeAllCallback, BeforeEachCallba
                                 return main.getResources(name);
                             }
                         };
-                        for (Map.Entry<String, List<BiFunction<String, ClassVisitor, ClassVisitor>>> e : functions.entrySet()) {
+                        for (Map.Entry<String, List<BiFunction<String, ClassVisitor, ClassVisitor>>> e : functions
+                                .entrySet()) {
                             String resourceName = e.getKey().replace('.', '/') + ".class";
                             try (InputStream stream = temp.getResourceAsStream(resourceName)) {
                                 if (stream == null) {
@@ -190,6 +223,23 @@ public class QuarkusTestExtension implements BeforeAllCallback, BeforeEachCallba
                                 ex.printStackTrace();
                             }
                         }
+                    }
+                })
+                .addChainCustomizer(new Consumer<BuildChainBuilder>() {
+                    @Override
+                    public void accept(BuildChainBuilder buildChainBuilder) {
+                        buildChainBuilder.addBuildStep(new BuildStep() {
+                            @Override
+                            public void execute(BuildContext context) {
+                                context.produce(new TestClassPredicateBuildItem(new Predicate<String>() {
+                                    @Override
+                                    public boolean test(String className) {
+                                        return PathTestHelper.isTestClass(className, testClassLoader);
+                                    }
+                                }));
+                            }
+                        }).produces(TestClassPredicateBuildItem.class)
+                                .build();
                     }
                 })
                 .build();
@@ -242,7 +292,14 @@ public class QuarkusTestExtension implements BeforeAllCallback, BeforeEachCallba
         }
     }
 
-    static class ExtensionState implements ExtensionContext.Store.CloseableResource {
+    private static ClassLoader setCCL(ClassLoader cl) {
+        final Thread thread = Thread.currentThread();
+        final ClassLoader original = thread.getContextClassLoader();
+        thread.setContextClassLoader(cl);
+        return original;
+    }
+
+    class ExtensionState implements ExtensionContext.Store.CloseableResource {
 
         private final TestResourceManager testResourceManager;
         private final Closeable resource;
@@ -256,8 +313,17 @@ public class QuarkusTestExtension implements BeforeAllCallback, BeforeEachCallba
 
         @Override
         public void close() throws Throwable {
-            resource.close();
             testResourceManager.stop();
+            try {
+                resource.close();
+            } finally {
+                if (QuarkusTestExtension.this.originalCl != null) {
+                    setCCL(QuarkusTestExtension.this.originalCl);
+                }
+            }
+            if (appCl != null) {
+                appCl.close();
+            }
         }
 
         public boolean isSubstrate() {

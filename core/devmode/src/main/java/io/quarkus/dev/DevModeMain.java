@@ -22,13 +22,11 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 
-import org.eclipse.microprofile.config.Config;
 import org.jboss.logging.Logger;
 
 import io.quarkus.runner.RuntimeRunner;
 import io.quarkus.runtime.LaunchMode;
 import io.quarkus.runtime.Timing;
-import io.smallrye.config.PropertiesConfigSource;
 import io.smallrye.config.SmallRyeConfigProviderResolver;
 
 /**
@@ -59,7 +57,7 @@ public class DevModeMain {
 
         runtimeUpdatesProcessor = RuntimeCompilationSetup.setup();
         if (runtimeUpdatesProcessor != null) {
-            runtimeUpdatesProcessor.scanForChangedClasses();
+            runtimeUpdatesProcessor.checkForChangedClasses();
         }
         //TODO: we can't handle an exception on startup with hot replacement, as Undertow might not have started
 
@@ -95,12 +93,13 @@ public class DevModeMain {
             //we can potentially throw away this class loader, and reload the app
             try {
                 Thread.currentThread().setContextClassLoader(runtimeCl);
-                RuntimeRunner runner = RuntimeRunner.builder()
+                RuntimeRunner.Builder builder = RuntimeRunner.builder()
                         .setLaunchMode(LaunchMode.DEVELOPMENT)
                         .setClassLoader(runtimeCl)
                         .setTarget(classesRoot.toPath())
                         .setFrameworkClassesPath(wiringDir.toPath())
-                        .setTransformerCache(cacheDir.toPath())
+                        .setTransformerCache(cacheDir.toPath());
+                RuntimeRunner runner = builder
                         .build();
                 runner.run();
                 closeable = runner;
