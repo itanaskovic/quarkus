@@ -51,16 +51,14 @@ import io.quarkus.smallrye.reactivemessaging.runtime.SmallRyeReactiveMessagingTe
  */
 public class SmallRyeReactiveMessagingProcessor {
 
-    private static final Logger LOGGER = Logger.getLogger("io.quarkus.scheduler.deployment.processor");
+    private static final Logger LOGGER = Logger.getLogger("io.quarkus.smallrye-reactive-messaging.deployment.processor");
 
     static final DotName NAME_INCOMING = DotName.createSimple(Incoming.class.getName());
     static final DotName NAME_OUTGOING = DotName.createSimple(Outgoing.class.getName());
 
     @BuildStep
-    List<AdditionalBeanBuildItem> beans() {
-        List<AdditionalBeanBuildItem> beans = new ArrayList<>();
-        beans.add(new AdditionalBeanBuildItem(SmallRyeReactiveMessagingLifecycle.class));
-        return beans;
+    AdditionalBeanBuildItem beans() {
+        return new AdditionalBeanBuildItem(SmallRyeReactiveMessagingLifecycle.class);
     }
 
     @BuildStep

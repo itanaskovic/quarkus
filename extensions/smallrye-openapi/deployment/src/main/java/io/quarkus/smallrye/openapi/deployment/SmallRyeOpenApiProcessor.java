@@ -94,12 +94,12 @@ public class SmallRyeOpenApiProcessor {
     SmallRyeOpenApiConfig openapi;
 
     @ConfigRoot(name = "smallrye-openapi")
-    static final class SmallRyeOpenApiConfig {
+    public static final class SmallRyeOpenApiConfig {
         /**
          * The path at which to register the OpenAPI Servlet.
          */
         @ConfigItem(defaultValue = "/openapi")
-        String path;
+        public String path;
     }
 
     List<HotDeploymentConfigFileBuildItem> configFiles() {
@@ -116,9 +116,8 @@ public class SmallRyeOpenApiProcessor {
     }
 
     @BuildStep
-    List<AdditionalBeanBuildItem> beans() {
-        return Arrays.asList(new AdditionalBeanBuildItem(OpenApiServlet.class),
-                new AdditionalBeanBuildItem(OpenApiDocumentProducer.class));
+    AdditionalBeanBuildItem beans() {
+        return new AdditionalBeanBuildItem(OpenApiServlet.class, OpenApiDocumentProducer.class);
     }
 
     @BuildStep
